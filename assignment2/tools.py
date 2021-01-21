@@ -1,5 +1,6 @@
 from matplotlib.pyplot import axis
 import numpy as np
+from pandas.core.arrays.sparse import dtype
 import sklearn
 import pandas as pd
 from sklearn.metrics import mean_squared_error
@@ -77,8 +78,8 @@ def load_data():
     url = 'http://jse.amstat.org/v19n3/decock/AmesHousing.txt'
 
     df = pd.read_csv(url, sep='\t')
-    df = fill_nans(df)
     df = replace_categorical_with_one_hot(df)
+    df = df.fillna(0)
 
     valid = df[(df['Order'] % 5) == 3]
     test = df[(df['Order'] % 5) == 4]
@@ -86,25 +87,6 @@ def load_data():
     train = df[mask]
 
     return train, valid, test
-
-def fill_nans(df):
-    '''
-    fill_nans - fill missing data with 0 or empty string
-
-    df : pandas.dataframe()
-        data set that contains nans
-    numerical_variables : list
-        name of the columns that are numerical
-
-    Returns : pandas.dataframe()
-        data set with replaced nans
-    '''
-    for col in df.columns:
-        if col in get_numerical_variables():
-            df[col].fillna(0, inplace=True)
-        else:
-            df[col].fillna('', inplace=True)
-    return df
 
 def replace_categorical_with_one_hot(df):
     '''
@@ -150,17 +132,11 @@ def calculate_OLS(data_matrix, responses):
     responses : numpy.matrix()
         column vector output of the training data
 
-    Returns
-    -------
-    weights : numpy.matrix()
+    Returns : numpy.matrix()
         weights of the least squares linear regression model
     '''
-    data_matrix = add_col_of_ones(data_matrix)
-    weights = data_matrix.T.dot(data_matrix)
-    weights = np.linalg.inv(weights)
-    weights = weights.dot(data_matrix.T)
-    weights = weights.dot(responses)
-    return weights
+    data_matrix = add_col_of_ones(data_matrix).T
+    return np.linalg.lstsq(data_matrix, responses, rcond=None)[0]
 
 def predict(x, weights):
     '''
@@ -176,7 +152,7 @@ def predict(x, weights):
         column vector of prediction results
     '''
     x = add_col_of_ones(x)
-    return np.matmul(x, weights)
+    return np.matmul(x.T, weights)
 
 def add_col_of_ones(x):
     '''
@@ -188,12 +164,7 @@ def add_col_of_ones(x):
     Returns: numpy.matrix()
         intput matrix with an additional column of ones
     '''
-    if x.ndim == 1:
-        x = np.column_stack((x, np.ones(x.shape)))
-    else:
-        rows, _ = x.shape
-        x = np.column_stack((x, np.ones(rows)))
-    return x
+    return np.vstack([x.T, np.ones(len(x))])
 
 def rmse(actual, prediction):
     '''
