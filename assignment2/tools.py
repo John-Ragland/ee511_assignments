@@ -1,4 +1,4 @@
-from matplotlib.pyplot import axis
+import sklearn
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
@@ -10,33 +10,10 @@ Code by John Ragland and Doruk Arisoy
 Winter 2021
 '''
 
-def _get_numerical_variables():
-    return ['Lot Area', 'Lot Frontage', 'Year Built',
-        'Mas Vnr Area', 'BsmtFin SF 1', 'BsmtFin SF 2',
-        'Bsmt Unf SF', 'Total Bsmt SF', '1st Flr SF',
-        '2nd Flr SF', 'Low Qual Fin SF', 'Gr Liv Area',
-        'Garage Area', 'Wood Deck SF', 'Open Porch SF',
-        'Enclosed Porch', '3Ssn Porch', 'Screen Porch',
-        'Pool Area']
-
-def _get_categorical_variables():
-    return ['MS SubClass', 'MS Zoning', 'Street',
-        'Alley', 'Lot Shape', 'Land Contour',
-        'Utilities', 'Lot Config', 'Land Slope',
-        'Neighborhood', 'Condition 1', 'Condition 2',
-        'Bldg Type', 'House Style', 'Overall Qual',
-        'Overall Cond', 'Roof Style', 'Roof Matl',
-        'Exterior 1st', 'Exterior 2nd', 'Mas Vnr Type',
-        'Exter Qual', 'Exter Cond', 'Foundation',
-        'Bsmt Qual', 'Bsmt Cond', 'Bsmt Exposure',
-        'BsmtFin Type 1', 'Heating', 'Heating QC',
-        'Central Air', 'Electrical', 'Bsmt Full Bath',
-        'Bsmt Half Bath', 'Full Bath', 'Half Bath',
-        'Bedroom AbvGr', 'Kitchen AbvGr', 'Kitchen Qual',
-        'TotRms AbvGrd', 'Functional', 'Fireplaces',
-        'Fireplace Qu', 'Garage Type', 'Garage Cars',
-        'Garage Qual', 'Garage Cond', 'Paved Drive',
-        'Pool QC', 'Fence', 'Sale Type', 'Sale Condition']
+def check_sklearn_version():
+    required = "0.24.1"
+    if sklearn.__version__ < required:
+        raise Exception("Please update sklearn. Sklearn version %s or higher required!" % required)
 
 def load_data():
     '''
@@ -72,6 +49,34 @@ def load_data():
     train = df[mask].loc[:, df.columns != 'Order']
 
     return train, valid, test
+
+def _get_numerical_variables():
+    return ['Lot Area', 'Lot Frontage', 'Year Built',
+        'Mas Vnr Area', 'BsmtFin SF 1', 'BsmtFin SF 2',
+        'Bsmt Unf SF', 'Total Bsmt SF', '1st Flr SF',
+        '2nd Flr SF', 'Low Qual Fin SF', 'Gr Liv Area',
+        'Garage Area', 'Wood Deck SF', 'Open Porch SF',
+        'Enclosed Porch', '3Ssn Porch', 'Screen Porch',
+        'Pool Area']
+
+def _get_categorical_variables():
+    return ['MS SubClass', 'MS Zoning', 'Street',
+        'Alley', 'Lot Shape', 'Land Contour',
+        'Utilities', 'Lot Config', 'Land Slope',
+        'Neighborhood', 'Condition 1', 'Condition 2',
+        'Bldg Type', 'House Style', 'Overall Qual',
+        'Overall Cond', 'Roof Style', 'Roof Matl',
+        'Exterior 1st', 'Exterior 2nd', 'Mas Vnr Type',
+        'Exter Qual', 'Exter Cond', 'Foundation',
+        'Bsmt Qual', 'Bsmt Cond', 'Bsmt Exposure',
+        'BsmtFin Type 1', 'Heating', 'Heating QC',
+        'Central Air', 'Electrical', 'Bsmt Full Bath',
+        'Bsmt Half Bath', 'Full Bath', 'Half Bath',
+        'Bedroom AbvGr', 'Kitchen AbvGr', 'Kitchen Qual',
+        'TotRms AbvGrd', 'Functional', 'Fireplaces',
+        'Fireplace Qu', 'Garage Type', 'Garage Cars',
+        'Garage Qual', 'Garage Cond', 'Paved Drive',
+        'Pool QC', 'Fence', 'Sale Type', 'Sale Condition']
 
 def _replace_categorical_with_one_hot(df):
     '''
