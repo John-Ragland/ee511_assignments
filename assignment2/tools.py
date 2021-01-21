@@ -149,7 +149,7 @@ def replace_categorical_with_one_hot(df):
     Returns : pandas.dataframe()
         data set with one-hot encoded columns
     '''
-    for original_col in (get_categorical_variables() + get_ordinal_variables()):
+    for original_col in (get_categorical_variables()):
         one_hot_matrix = one_hot(np.array(df[original_col]))
         _, new_cols = one_hot_matrix.shape
         for i in range(new_cols):
