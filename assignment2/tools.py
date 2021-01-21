@@ -20,16 +20,29 @@ def get_numerical_variables():
     Returns: array
         list of numerical class names
     '''
+    # numerical from Doruk
+    """
     return [
         'SalePrice', 'Lot Frontage', 'Lot Area', 'Mas Vnr Area', 
-        'BsmtFin SF 1 ', 'BsmtFin SF 2', 'Bsmt Unf SF', 'Total Bsmt SF', 
+        'BsmtFin SF 1', 'BsmtFin SF 2', 'Bsmt Unf SF', 'Total Bsmt SF', 
         '1st Flr SF', '2nd Flr SF', 'Low Qual Fin SF', 'Gr Liv Area', 
         'Garage Area', 'Wood Deck SF', 'Open Porch SF', 'Enclosed Porch', 
-        '3-Ssn Porch', 'Screen Porch', 'Pool Area', 'Misc Val', 
+        '3Ssn Porch', 'Screen Porch', 'Pool Area', 'Misc Val', 
         'Order', 'Year Built', 'Year Remod/Add', 'Bsmt Full Bath', 
         'Bsmt Half Bath', 'Full Bath', 'Half Bath', 'Bedroom', 
         'Kitchen', 'TotRmsAbvGrd', 'Fireplaces', 'Garage Yr Blt', 
         'Garage Cars', 'Mo Sold', 'Yr Sold']
+    """
+    numerical_variables = [
+        'Lot Area', 'Lot Frontage', 'Year Built',
+        'Mas Vnr Area', 'BsmtFin SF 1', 'BsmtFin SF 2',
+        'Bsmt Unf SF', 'Total Bsmt SF', '1st Flr SF',
+        '2nd Flr SF', 'Low Qual Fin SF', 'Gr Liv Area',
+        'Garage Area', 'Wood Deck SF', 'Open Porch SF',
+        'Enclosed Porch', '3Ssn Porch', 'Screen Porch',
+        'Pool Area']
+
+    return numerical_variables
 
 def get_categorical_variables():
     '''
@@ -38,13 +51,33 @@ def get_categorical_variables():
     Returns: array
         list of categorical class names
     '''
-    return [
+    # categorical_variables from Doruk
+    """return [
         'MS SubClass', 'MS Zoning', 'Street', 'Alley',
         'Land Contour', 'Lot Config', 'Neighborhood', 'Condition 1',
         'Condition 2', 'Bldg Type', 'House Style', 'Roof Style',
         'Roof Matl', 'Exterior 1st', 'Exterior 2nd', 'Mas Vnr Type',
         'Foundation', 'Heating', 'Central Air', 'Garage Type',
         'Misc Feature', 'Sale Type', 'Sale Condition', 'PID']
+    """
+    categorical_variables = ['MS SubClass', 'MS Zoning', 'Street',
+        'Alley', 'Lot Shape', 'Land Contour',
+        'Utilities', 'Lot Config', 'Land Slope',
+        'Neighborhood', 'Condition 1', 'Condition 2',
+        'Bldg Type', 'House Style', 'Overall Qual',
+        'Overall Cond', 'Roof Style', 'Roof Matl',
+        'Exterior 1st', 'Exterior 2nd', 'Mas Vnr Type',
+        'Exter Qual', 'Exter Cond', 'Foundation',
+        'Bsmt Qual', 'Bsmt Cond', 'Bsmt Exposure',
+        'BsmtFin Type 1', 'Heating', 'Heating QC',
+        'Central Air', 'Electrical', 'Bsmt Full Bath',
+        'Bsmt Half Bath', 'Full Bath', 'Half Bath',
+        'Bedroom AbvGr', 'Kitchen AbvGr', 'Kitchen Qual',
+        'TotRms AbvGrd', 'Functional', 'Fireplaces',
+        'Fireplace Qu', 'Garage Type', 'Garage Cars',
+        'Garage Qual', 'Garage Cond', 'Paved Drive',
+        'Pool QC', 'Fence', 'Sale Type', 'Sale Condition']
+    return categorical_variables
 
 def get_ordinal_variables():
     '''
@@ -78,13 +111,30 @@ def load_data():
     url = 'http://jse.amstat.org/v19n3/decock/AmesHousing.txt'
 
     df = pd.read_csv(url, sep='\t')
-    df = replace_categorical_with_one_hot(df)
-    df = df.fillna(0)
 
-    valid = df[(df['Order'] % 5) == 3]
-    test = df[(df['Order'] % 5) == 4]
+    # Throw out unneeded variables
+    df = df[
+        get_numerical_variables() + get_categorical_variables() + \
+        ['Order'] + ['SalePrice']]
+
+    # Change numerical columns with NaN to 0
+    for name in get_numerical_variables():
+        df[name] = df[name].fillna(0)
+
+    # Change string columns with NaN to 'null'
+    for name in get_categorical_variables():
+        df[name] = df[name].fillna('null')
+        df[name] = df[name].astype(str)
+
+    df = replace_categorical_with_one_hot(df)
+    
+    # Seperate into training, testing, and validation (and remove Order column)
+    df.loc[:, df.columns != 'b']
+    valid = df[(df['Order'] % 5) == 3].loc[:, df.columns != 'Order']
+    test = df[(df['Order'] % 5) == 4].loc[:, df.columns != 'Order']
+    
     mask = ((df['Order'] % 5) != 3) & ((df['Order'] % 5) != 4)
-    train = df[mask]
+    train = df[mask].loc[:, df.columns != 'Order']
 
     return train, valid, test
 
