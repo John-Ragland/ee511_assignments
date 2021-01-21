@@ -3,7 +3,7 @@ import numpy as np
 import sklearn
 import pandas as pd
 from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder
 
 '''
 Toolbox for Assignment 2 - ee511 - Statistical Learning
@@ -154,26 +154,15 @@ def calculate_OLS(data_matrix, responses):
     -------
     weights : numpy.matrix()
         weights of the least squares linear regression model
-    shift : float
-        how much the linear model be shifted
     '''
+    data_matrix = add_col_of_ones(data_matrix)
     weights = data_matrix.T.dot(data_matrix)
-    if weights.ndim < 2:
-         weights = data_matrix.T / weights
-    else :
-        weights = np.linalg.inv(weights)
-        weights = weights.dot(data_matrix.T)
-
+    weights = np.linalg.inv(weights)
+    weights = weights.dot(data_matrix.T)
     weights = weights.dot(responses)
+    return weights
 
-    shift = responses.mean()
-    if weights.ndim < 2:
-        shift -= weights * data_matrix.mean(axis=0)
-    else:
-        shift -= weights.T.dot(data_matrix.mean(axis=0))
-    return weights, shift
-
-def predict(x, weights, shift):
+def predict(x, weights):
     '''
     predict - given the linear regression weights and input data, predict
         the output
@@ -182,13 +171,29 @@ def predict(x, weights, shift):
         input data
     weights : numpy.matrix()
         weights of the least squares linear regression model
-    shift : float
-        how much the linear model be shifted
 
     Returns : numpy.matrix()
         column vector of prediction results
     '''
-    return weights * x + shift
+    x = add_col_of_ones(x)
+    return np.matmul(x, weights)
+
+def add_col_of_ones(x):
+    '''
+    add_col_of_ones - appends a column of ones to the given matrix
+
+    x : numpy.matrix()
+        input matrix
+
+    Returns: numpy.matrix()
+        intput matrix with an additional column of ones
+    '''
+    if x.ndim == 1:
+        x = np.column_stack((x, np.ones(x.shape)))
+    else:
+        rows, _ = x.shape
+        x = np.column_stack((x, np.ones(rows)))
+    return x
 
 def rmse(actual, prediction):
     '''
