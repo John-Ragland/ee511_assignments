@@ -177,10 +177,12 @@ class Data:
         for k in range(20):
             for j in range(len(self.train_data_ls[k])):
                 train_labels.append(self.categories[k])
-
+        train_labels_array = np.array(train_labels)
+        
         test_labels = []
         for k in range(20):
             for j in range(len(self.test_data_bin_ls[k])):
                 test_labels.append(self.categories[k])
+        test_labels_array = np.array(test_labels)
 
-        return train_labels, test_labels
+        return train_labels_array, test_labels_array
