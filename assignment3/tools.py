@@ -1,6 +1,6 @@
 from collections import Counter
 import numpy as np
-import sklearn
+from sklearn.model_selection import train_test_split
 
 class Data:
     '''
@@ -24,42 +24,40 @@ class Data:
     self.catergories : numpy array
         shape (self.cat_size,)
 
-    self.test_data_bin : numpy array
+    self.test_bin : numpy array
         shape (test_lines, self.vocab_size)
-    self.test_data_max : numpy array
+    self.test_max : numpy array
         shape (test_lines, self.vocab_size)
-    self.test_data_log : numpy array
+    self.test_log : numpy array
         shape (test_lines, self.vocab_size) 
     self.test_labels  : numpy array
         shape (test_lines,)
 
-    self.train_data_bin : numpy array
+    self.train_bin : numpy array
         shape (train_lines, self.vocab_size)
-    self.train_data_max : numpy array
+    self.train_max : numpy array
         shape (train_lines, self.vocab_size)
-    self.train_data_log : numpy array
+    self.train_log : numpy array
         shape (train_lines, self.vocab_size)
     self.train_labels : numpy array
         shape (train_lines,)
     '''
-    def __init__(self, test_name='data/20ng-test-all-terms.txt', test_lines=7528, 
+    def __init__(self, categories, test_name='data/20ng-test-all-terms.txt', test_lines=7528, 
                        train_name='data/20ng-train-all-terms.txt', train_lines=11293, 
                        vocab_size=5000, cat_size=20):
         self.vocab_size = vocab_size
         self.cat_size = cat_size
+        self.categories = categories
 
         print('Calculating Vocabulary...')
         self._calculate_vocab(open(train_name, "r"))
         
         print('Loading Testing Data...')
-        self.test_data_bin, self.test_data_max, self.test_data_log, self.test_labels = self._load_data(open(test_name, "r"), test_lines)
-
-        print('Loading Categories...')
-        self.catergories = np.unique(self.test_labels)
+        self.test_bin, self.test_max, self.test_log, self.test_labels = self._load_data(open(test_name, "r"), test_lines)
 
         print('Loading Training Data...')
-        self.train_data_bin, self.train_data_max, self.train_data_log, self.train_labels = self._load_data(open(train_name, "r"), train_lines)
-            
+        self.train_bin, self.train_max, self.train_log, self.train_labels = self._load_data(open(train_name, "r"), train_lines)
+    
     def _calculate_vocab(self, file):
         vocab = []
         file.seek(0)
@@ -74,12 +72,12 @@ class Data:
         data_max = np.zeros(shape=(num_of_lines, self.vocab_size))
         data_log = np.zeros(shape=(num_of_lines, self.vocab_size))
         data_bin = np.zeros(shape=(num_of_lines, self.vocab_size))
-        labels = np.empty(num_of_lines, dtype='U')
+        labels = np.empty(num_of_lines)
         file.seek(0)
         line = 0
         for post in file:
             words = post.split()
-            labels[line] = words[0]
+            labels[line] = self.categories.index(words[0])
             data_bin[line], data_max[line], data_log[line] = self.get_post_vectors(words[1:])
             line += 1
 
@@ -99,3 +97,8 @@ class Data:
         
         log = np.log(max + 1)
         return binary, max, log
+
+    def train_test_split(self, valid_size=0.1):
+        self.train_bin, self.valid_bin, self.train_bin_labels, self.valid_bin_labels = train_test_split(self.train_bin, self.train_labels, valid_size)
+        self.train_max, self.valid_max, self.train_max_labels, self.valid_max_labels = train_test_split(self.train_max, self.train_labels, valid_size)
+        self.train_log, self.valid_log, self.train_log_labels, self.valid_log_labels = train_test_split(self.train_log, self.train_labels, valid_size)
