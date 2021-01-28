@@ -1,4 +1,5 @@
 *.DS_store
 *.pyc
 assignment2/.ipynb_checkpoints/*
-data/processed.obj
+assignment3/.ipynb_checkpoints/*
+assignment3/data/processed.obj
