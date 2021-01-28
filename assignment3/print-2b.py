@@ -16,7 +16,7 @@ for t in range(iterations):
         p1 = math.exp(w[0] + (w[1] * x[1][j]) + (w[2] * x[2][j]))
         p2 = p1 / (p1 + 1)
         p[j] = p2
-        print('$$\\text(exp)(%.2f+%.2f*%d+%.2f*%d) = %.2f \\rightarrow P(Y^%d=1| x^%d, w) = %.2f$$' \
+        print('$$\\text{{exp}}(%.2f+%.2f*%d+%.2f*%d) = %.2f \\rightarrow P(Y^%d=1| x^%d, w) = %.2f$$' \
             % (w[0], w[1], x[1][j], w[2], x[2][j], p1, j, j, p2))
 
     print('Loop over i, sum over j')
