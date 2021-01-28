@@ -1,5 +1,6 @@
 from collections import Counter
 import numpy as np
+import itertools
 
 class Data:
     '''
@@ -24,24 +25,41 @@ class Data:
         test wrapper for testing data
     train_file : _io.TextIOWrapper
         train wrapper for training data
-    test_data : list
+    test_data_ls : list
         test_data[a][b][c] => a: category, b: vector of a post in that
         category, c: frequency of the word self.vocab[c] in this post    
-    train_data_count : list
+    
+    train_data_count_ls : list
         train_data_count[a][b][c] => a: category, b: vector of a post in that
         category, c: frequency of the word self.vocab[c] in this post.
         Vocabulary is represented using counted method
-    train_data_log : list
+    train_data_log_ls : list
         train_data_log[a][b][c] => a: category, b: vector of a post in that
         category, c: frequency of the word self.vocab[c] in this post.
         Vocabulary is represented by log normalized count method
-    train_data_bin : list
+    train_data_bin_ls : list
         train_data_bin[a][b][c] => a: category, b: vector of a post in that
         category, c: frequency of the word self.vocab[c] in this post.
         Vocabulary is represented by binary activation method
     categories : list
         list of the 20 category names. Index corresponds to a index of train
         and test data.
+
+    test_data : numpy array
+        shape (n_test_samples, n_features)
+    test_labels : numpy array
+        shape (n_test_samples,)
+
+    train_data_count : numpy array
+        shape (n_train_samples, n_features)
+    train_data_log : numpy array
+        shape (n_train_samples, n_features)
+    train_data_bin : numpy array
+        shape (n_train_samples, n_features)
+    train_labels : numpy array
+        shape (n_samples,)
+
+
     vocab : list
         list containing 5000 most frequency words
 
@@ -59,11 +77,26 @@ class Data:
         
         # TODO change test data vocab representation to correct form
         print('Loading Testing Data...')
-        _, _, self.test_data = self._load_data(self.test_file)
+        _, _, self.test_data_ls = self._load_data(self.test_file)
 
         print('Loading Training Data...')
-        self.train_data_bin, self.train_data_count, self.train_data_log = self._load_data(self.train_file)
+        self.train_data_bin_ls, self.train_data_count_ls, self.train_data_log_ls = self._load_data(self.train_file)
+        
+        # Flatten Lists
+        test_data_ls_flat = list(itertools.chain.from_iterable(itertools.chain.from_iterable(self.test_data_ls)))
+        train_data_bin_ls_flat = list(itertools.chain.from_iterable(itertools.chain.from_iterable(self.train_data_bin_ls)))
+        train_data_count_ls_flat = list(itertools.chain.from_iterable(itertools.chain.from_iterable(self.train_data_count_ls)))
+        train_data_log_ls_flat = list(itertools.chain.from_iterable(itertools.chain.from_iterable(self.train_data_log_ls)))
 
+        # Create Reshaped Numpy Arrays
+        self.test_data = np.reshape(np.array(test_data_ls_flat),(int(len(test_data_ls_flat)/5000),5000))
+        self.train_data_bin = np.reshape(np.array(train_data_bin_ls_flat),(int(len(train_data_bin_ls_flat)/5000),5000))
+        self.train_data_count = np.reshape(np.array(train_data_count_ls_flat),(int(len(train_data_count_ls_flat)/5000),5000))
+        self.train_data_log = np.reshape(np.array(train_data_log_ls_flat),(int(len(train_data_log_ls_flat)/5000),5000))
+
+        # Create training and testing labels
+        self.train_labels, self.test_labels = self._get_labels()
+    
     def _calculate_vocab(self):
         vocab = []
         self.train_file.seek(0)
@@ -137,5 +170,17 @@ class Data:
         for word in post:
             if word in self.vocab:
                 vector[self.vocab.index(word)] = 1
-        
         return vector
+
+    def _get_labels(self):
+        train_labels = []
+        for k in range(20):
+            for j in range(len(self.train_data_ls[k])):
+                train_labels.append(self.categories[k])
+
+        test_labels = []
+        for k in range(20):
+            for j in range(len(self.test_data_bin_ls[k])):
+                test_labels.append(self.categories[k])
+
+        return train_labels, test_labels
