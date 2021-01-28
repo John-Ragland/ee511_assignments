@@ -57,7 +57,10 @@ class Data:
 
         print('Loading Training Data...')
         self.train_bin, self.train_max, self.train_log, self.train_labels = self._load_data(open(train_name, "r"), train_lines)
-    
+
+        print('Splitting Training Data into Training and Validation...')
+        self._train_test_split()
+
     def _calculate_vocab(self, file):
         vocab = []
         file.seek(0)
@@ -98,7 +101,10 @@ class Data:
         log = np.log(max + 1)
         return binary, max, log
 
-    def train_test_split(self, valid_size=0.1):
-        self.train_bin, self.valid_bin, self.train_bin_labels, self.valid_bin_labels = train_test_split(self.train_bin, self.train_labels, valid_size)
-        self.train_max, self.valid_max, self.train_max_labels, self.valid_max_labels = train_test_split(self.train_max, self.train_labels, valid_size)
-        self.train_log, self.valid_log, self.train_log_labels, self.valid_log_labels = train_test_split(self.train_log, self.train_labels, valid_size)
+    def _train_test_split(self, valid_size=0.1):
+        self.train_bin, self.valid_bin, self.train_bin_labels, self.valid_bin_labels = \
+            train_test_split(self.train_bin, self.train_labels, test_size=valid_size)
+        self.train_max, self.valid_max, self.train_max_labels, self.valid_max_labels = \
+            train_test_split(self.train_max, self.train_labels, test_size=valid_size)
+        self.train_log, self.valid_log, self.train_log_labels, self.valid_log_labels = \
+            train_test_split(self.train_log, self.train_labels, test_size=valid_size)
