@@ -1,6 +1,7 @@
 from collections import Counter
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn import preprocessing
 
 class Data:
     '''
@@ -58,10 +59,14 @@ class Data:
         print('Loading Training Data...')
         self.train_bin, self.train_max, self.train_log, self.train_labels = self._load_data(open(train_name, "r"), train_lines)
 
+        print('Normalizing training Data...')
+        self._normalize_data()
+
         print('Splitting Training Data into Training and Validation...')
         self._train_test_split()
 
     def _calculate_vocab(self, file):
+        # TODO: try the other vocabulary option from part b
         vocab = []
         file.seek(0)
         for line in file:
@@ -100,6 +105,21 @@ class Data:
         
         log = np.log(max + 1)
         return binary, max, log
+
+    def _normalize_data(self):
+        scaler_train_bin = preprocessing.StandardScaler().fit(self.train_bin)
+        scaler_train_max = preprocessing.StandardScaler().fit(self.train_max)
+        scaler_train_log = preprocessing.StandardScaler().fit(self.train_log)
+        scaler_test_bin = preprocessing.StandardScaler().fit(self.test_bin)
+        scaler_test_max = preprocessing.StandardScaler().fit(self.test_max)
+        scaler_test_log = preprocessing.StandardScaler().fit(self.test_log)
+
+        self.train_bin = scaler_train_bin.transform(self.train_bin)
+        self.train_max = scaler_train_max.transform(self.train_max)
+        self.train_log = scaler_train_log.transform(self.train_log)
+        self.test_bin = scaler_test_bin.transform(self.test_bin)
+        self.test_max = scaler_test_max.transform(self.test_max)
+        self.test_log = scaler_test_log.transform(self.test_log)
 
     def _train_test_split(self, valid_size=0.1):
         self.train_bin, self.valid_bin, self.train_bin_labels, self.valid_bin_labels = \
