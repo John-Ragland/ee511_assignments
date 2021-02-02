@@ -25,7 +25,9 @@ class Data:
         number of categories
 
     self.vocab : list
-        list containing 5000 most frequency words
+        list containing 5000 words
+    self.vocab_vals : list
+        list containing 5000 word values
     self.catergories : numpy array
         shape (self.cat_size,)
 
@@ -87,7 +89,6 @@ class Data:
 
     def _calculate_vocab(self, file, num_of_lines):
         self.makeShiftMI(file, num_of_lines) # about 15 minutes
-        # self.sklearnMI(file, num_of_lines) # did not finish executing after 20+ minutes
         # self.mostFrequentVocab(file, num_of_lines) # a few seconds
 
     def makeShiftMI(self, file, num_of_lines):
@@ -143,26 +144,6 @@ class Data:
         self.vocab = [vect.get_feature_names()[i] for i in top_5000]
         self.vocab_vals = [mi[i] for i in top_5000]
         
-    def sklearnMI(self, file, num_of_lines):
-        file.seek(0)
-        vocab = [[] for _ in range(num_of_lines)]
-        labels = ['' for _ in range(num_of_lines)]
-        for index, line in enumerate(file):
-            words = line.split("\t", 1)
-            labels[index] = self.categories.index(words[0])
-            vocab[index] = words[1]
-
-        vect = CountVectorizer(binary = True)
-        cv_fit = vect.fit_transform(vocab).toarray()
-
-        mi = mutual_info_classif(cv_fit, labels)
-
-        print(mi)
-
-        top_5000 = np.argsort(mi)[-5000:]
-        self.vocab = [vect.get_feature_names()[i] for i in top_5000]
-        self.vocab_vals = [mi[i] for i in top_5000]
-
     def mostFrequentVocab(self, file, num_of_lines):
         all_words = chain(*(line.split()[1:] for line in file if line))
         cnt = Counter(all_words)
