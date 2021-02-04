@@ -69,3 +69,14 @@ def test(model, device, test_loader, criterion):
         100. * correct / len(test_loader.dataset)))
     
     return 100. * correct / len(test_loader.dataset)
+
+def average_loss(model, criterion, imgs):
+    return np.mean(loss_array(model, criterion, imgs))
+
+def loss_array(model, criterion, imgs):
+    loss = np.zeros(len(imgs))
+    for i, im in enumerate(imgs):
+        im_tensor = torch.Tensor(im)
+        ouput = model(im_tensor)
+        loss[i] = criterion(ouput, im_tensor)
+    return loss
