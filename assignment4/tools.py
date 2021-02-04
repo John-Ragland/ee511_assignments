@@ -80,3 +80,101 @@ def loss_array(model, criterion, imgs):
         ouput = model(im_tensor)
         loss[i] = criterion(ouput, im_tensor)
     return loss
+
+
+# KNearestNeighbor Classifier from Assignment 1
+class KNearestNeighbor(object):
+    """ a kNN classifier using L2 distance """
+    def __init__(self):
+        pass
+
+    def train(self, X, y):
+        """
+        Train classifier for k nearest neibor
+        Parameters
+        ----------
+        X : numpy array
+            shape(num_train, D) training data images
+        Y : numpy array shape (N,)
+            labels for images X
+        """
+        self.X_train = X
+        self.y_train = y
+        
+    def predict(self, X, k=1):
+        """
+        Predict labels for test data using this classifier.
+        Parameters
+        ----------
+        X : numpy array 
+            of shape (num_test, D) containing test data consisting
+            of num_test samples each of dimension D.
+        k : float
+            The number of nearest neighbors that vote for the predicted labels.
+
+        Returns
+        -------
+        y : numpy array
+            of shape (num_test,) containing predicted labels for the
+            test data, where y[i] is the predicted label for the test point
+            X[i].  
+        """
+        
+        dists = self.compute_distances(X)
+        return self.predict_labels(dists, k=k)
+
+    def compute_distances(self, X):
+        """
+        Compute the distance between each test point in X and each training point
+        in self.X_train using no explicit loops.
+        
+        Parameters
+        ----------
+        X : numpy array
+            test images of shape (num_test, D)
+        
+        Returns
+        -------
+        dists : numpy array
+            distances from each training image to each test image
+        """
+        num_test = X.shape[0]
+        num_train = self.X_train.shape[0]
+        dists = np.zeros((num_test, num_train)) 
+
+        dists = np.reshape(np.sum(X**2, axis=1), [num_test,1]) + np.sum(self.X_train**2, axis=1) - 2 * np.matmul(X, self.X_train.T)
+        
+        dists = np.sqrt(dists)
+
+        return dists
+
+    def k_neighbors_idx(self, dists, k=1):
+        """
+        Given a matrix of distances between test points and training points,
+        predict a label for each test point.
+        Parameters
+        ----------
+        dists : numpy array 
+            of shape (num_test, num_train) where dists[i, j]
+            gives the distance betwen the ith test point and the jth training
+            point.
+        Returns
+        -------
+        y : numpy array
+            of shape (num_test,) containing predicted labels for the
+            test data, where y[i] is the predicted label for the test point
+            X[i].  
+        """
+        num_test = dists.shape[0]
+        y_pred = np.zeros(num_test)
+        for i in range(num_test):
+            # A list of length k storing the labels of the k nearest neighbors to
+            # the ith test point.
+            closest_y = []
+
+            closest_X = self.X_train[np.argsort(dists[i])][0:k]
+            y_pred[i] = np.bincount(closest_y.astype(int)).argmax()
+
+        return y_pred
+
+        
