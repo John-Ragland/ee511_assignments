@@ -4,3 +4,4 @@ assignment2/.ipynb_checkpoints/*
 assignment3/.ipynb_checkpoints/*
 assignment3/data/processed.obj
 *.png
+*.tsv
