@@ -47,7 +47,7 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, criterio
             loss.backward()
             optimizer.step()
             if verbose and batch_idx % log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                print('Train Epoch: %d [%d/%d (%.0f%%)]\tLoss: %.6f' % (
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
