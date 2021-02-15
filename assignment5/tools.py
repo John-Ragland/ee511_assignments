@@ -10,6 +10,8 @@ class Data():
         self.val = load_data('Data/val.tsv')
         self.test = load_data('Data/test.tsv')
         self.get_vocab()
+        self.train_freq = get_freq(self.train, self.vocab)
+        self.val_freq = get_freq(self.val, self.vocab)
 
     def get_vocab(self):
         chars = [i for ele in self.train.tweet.to_list() for i in ele]
@@ -29,11 +31,9 @@ class Data():
         self.vocab = vocab
     
     def get_perplexity(self):
-        train_freq = get_freq(self.train, self.vocab)
-        val_freq = get_freq(self.val, self.vocab)
-        train_freq = train_freq / train_freq.sum()
-        val_freq = val_freq / val_freq.sum()
-        train_freq[self.vocab.index('<S>')] = 1.0  # this will be zeroed out later
+        train_freq = self.train_freq / self.train_freq.sum()
+        val_freq = self.val_freq / self.val_freq.sum()
+        train_freq[self.vocab.index('<S>')] = 1
         return np.exp(-(val_freq * np.log(train_freq)).sum())
 
 def load_data(filename):
@@ -44,13 +44,13 @@ def load_data(filename):
 
 def get_freq(data, vocab):
     freq = np.zeros(len(vocab))
-    for line in data.tweet:
-        for char in line:
+    for tweet in data.tweet:
+        for char in tweet:
             if char in vocab:
-                freq[vocab.index(char)] += 1.0
+                freq[vocab.index(char)] += 1
             else:
-                freq[vocab.index('<N>')] += 1.0
-        freq[vocab.index('</S>')] += 1.0
+                freq[vocab.index('<N>')] += 1
+        freq[vocab.index('</S>')] += 1
     return freq
 
 def list_to_tensor(data, verbose=False):
@@ -58,7 +58,7 @@ def list_to_tensor(data, verbose=False):
     for k, item in enumerate(data):
         tensor[k] = string_to_tensor(item)
         if verbose:
-            print('%d percent complete' % k/len(data)*100, end='\r')
+            print('%d %% complete' % k/len(data)*100, end='\r')
     return tensor
 
 def string_to_tensor(line, vocab):
