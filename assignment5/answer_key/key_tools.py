@@ -111,20 +111,26 @@ def get_predictions(model, testData):
     model.eval()
     predictions = []
     batch_size = testData.batch_size
+    print(len(testData))
     with torch.no_grad():
-        for i in range(len(testData)):
+        for i in range(1):
             data, label, indices = testData[i]
             new_src = torch.cat([data[0][:,i].unsqueeze(-1).repeat(1,9) for i in range(data[0].size(1))], -1)
             new_lang = torch.cat([data[1][:,i].unsqueeze(-1).repeat(1,9) for i in range(data[1].size(1))], -1)
+            
             for j in range(9):
                 new_lang[:, [col for col in range(new_lang.size(1)) if col%9==j]].fill_(j)
             new_lengths = []
             for l in data[2]:
                 new_lengths += [l]*9
             data = (new_src, new_lang, new_lengths)
+            print(new_lang.size())
+            print(new_src[1].numpy().tolist())
+            print(new_lang[0].numpy().tolist())
             output, hidden = model(data)
             outputs = output.split(9, dim=1)
             batch_predictions = []
+            print(outputs[0].size())
             for e_idx in range(len(outputs)):
                 e = outputs[e_idx]
                 smallest_loss = 10000000

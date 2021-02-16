@@ -53,14 +53,14 @@ def get_freq(data, vocab):
     return freq
 
 def get_data_loader(tweets, lans, batch_size):
-    data_tensor = torch.Tensor(tweets)
-    label_tensor = torch.tensor(lans, dtype=torch.int, device=torch.device("cpu"))
+    data_tensor = torch.tensor(tweets, dtype=torch.long, device=torch.device("cpu"))
+    label_tensor = torch.tensor(lans, dtype=torch.long, device=torch.device("cpu"))
     train_dataset = TensorDataset(data_tensor, label_tensor)
     return DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True) 
 
 def data_encoding(data, vocab, languages, tweet_length=282):
     tweets = tweet_enconding(data.tweet, vocab, tweet_length)
-    langs = lang_encoding(data.lan, languages)
+    langs = lang_encoding(data.lan, languages, tweet_length)
     return tweets, langs
 
 def tweet_enconding(tweets, vocab, tweet_length):
@@ -77,10 +77,12 @@ def tweet_enconding(tweets, vocab, tweet_length):
         encoded[t][tweet_length-1] = vocab.index('</S>')
     return encoded
 
-def lang_encoding(labels, languages):
-    encoded = np.zeros(len(labels))
+def lang_encoding(labels, languages, tweet_length):
+    encoded = np.zeros((len(labels), tweet_length))
     for l, lang in enumerate(labels):
-        encoded[l] = languages.index(lang)
+        idx = languages.index(lang)
+        for char in range(1, tweet_length-1):
+            encoded[l][char] = idx
     return encoded
 
 def check_files_exists(filename):
@@ -94,7 +96,7 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=
         for batch_idx, (data, label) in enumerate(train_loader):
             data, label = data.to(device), label.to(device)
             optimizer.zero_grad()
-            output, hidden = model(data)
+            output, hidden = model(data, label)
             loss = model.loss(output, label)
             loss.backward()
             optimizer.step()
