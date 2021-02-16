@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from collections import Counter
 import torch
+from torch.utils.data import TensorDataset, DataLoader
 
 class Data():
     def __init__(self):
@@ -21,9 +22,7 @@ class Data():
             if most_common[k][1] < char_limit:
                 break
 
-        vocab = most_common[:k]
-        vocab = [i[0] for i in vocab]
-
+        vocab = [i[0] for i in most_common[:k]]
         vocab.insert(0,'<S>')   # start token
         vocab.insert(0,'</S>')  # end token
         vocab.insert(0,'<N>')   # out-of-vocabulary token
@@ -53,44 +52,50 @@ def get_freq(data, vocab):
         freq[vocab.index('</S>')] += 1
     return freq
 
-def list_to_tensor(data, verbose=False):
-    tensor = [0]*len(data)
-    for k, item in enumerate(data):
-        tensor[k] = string_to_tensor(item)
-        if verbose:
-            print('%d %% complete' % k/len(data)*100, end='\r')
-    return tensor
+def get_data_loader(tweets, lans, batch_size):
+    data_tensor = torch.Tensor(tweets)
+    label_tensor = torch.tensor(lans, dtype=torch.int, device=torch.device("cpu"))
+    train_dataset = TensorDataset(data_tensor, label_tensor)
+    return DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True) 
 
-def string_to_tensor(line, vocab):
-    # Based on https://pytorch.org/tutorials/intermediate/char_rnn_classification_tutorial.html
-    tensor = torch.zeros(len(line)+2, 1, len(vocab))
-    #add start character
-    tensor[0][0][2] = 1
-    
-    for li, letter in enumerate(line):
-        try:
-            tensor[li+1][0][vocab.index(letter)] = 1
-        #Add not in vocab character
-        except(ValueError):
-            tensor[li+1][0][0] = 1
-            
-    # add end character
-    tensor[-1][0][1] = 1
-    return tensor
+def data_encoding(data, vocab, languages, tweet_length=282):
+    tweets = tweet_enconding(data.tweet, vocab, tweet_length)
+    langs = lang_encoding(data.lan, languages)
+    return tweets, langs
+
+def tweet_enconding(tweets, vocab, tweet_length):
+    encoded = np.zeros((len(tweets), tweet_length))
+    for t, tweet in enumerate(tweets):
+        encoded[t][0] = vocab.index('<S>')
+        for char in range(1, tweet_length-1):
+            if char < len(tweet) and tweet[char] in vocab:
+                encoded[t][char] = vocab.index(tweet[char])
+            elif char < len(tweet):
+                encoded[t][char] = vocab.index('<N>')
+            else:
+                encoded[t][char] = vocab.index('</S>')
+        encoded[t][tweet_length-1] = vocab.index('</S>')
+    return encoded
+
+def lang_encoding(labels, languages):
+    encoded = np.zeros(len(labels))
+    for l, lang in enumerate(labels):
+        encoded[l] = languages.index(lang)
+    return encoded
 
 def check_files_exists(filename):
     # Check if data files exist
     if not os.path.exists(filename):
         raise Exception ('Data files missings, please add %s.' % filename)
 
-def train(model, device, train_loader, optimizer, epochs, log_interval, criterion, verbose=False):
+def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=False):
     for epoch in range(epochs + 1):
         model.train()
         for batch_idx, (data, label) in enumerate(train_loader):
             data, label = data.to(device), label.to(device)
             optimizer.zero_grad()
             output, hidden = model(data)
-            loss = criterion(output, label) 
+            loss = model.loss(output, label)
             loss.backward()
             optimizer.step()
             if verbose and batch_idx % log_interval == 0:

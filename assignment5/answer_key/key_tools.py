@@ -65,50 +65,6 @@ class Dataset(object):
         # srcSeqLength * bs, srcSeqLength * bs, tgtSeqLength * bs
         return (wrap(srcBatch), wrap(langBatch), list(lengths)), wrap(tgtBatch), indices
 
-
-class MyRNN(nn.Module):
-    def __init__(self, vocab_size, lang_size=9, char_vec_size=12, lang_vec_size=2, hidden_size=50, PAD=0):
-        
-        super(MyRNN, self).__init__()
-        self.vocab_size = vocab_size
-        self.lang_size = lang_size
-        self.char_vec_size = char_vec_size
-        self.lang_vec_size = lang_vec_size
-        self.hidden_size = hidden_size
-        
-        self.char_encoder = nn.Embedding(self.vocab_size, self.char_vec_size)
-        self.lang_encoder = nn.Embedding(self.lang_size, self.lang_vec_size)
-        # the current hidden size = char_vec_size
-        self.gru = nn.GRU(self.char_vec_size+self.lang_vec_size, self.hidden_size, num_layers=1)
-        self.linear = nn.Linear(self.hidden_size, self.char_vec_size)
-        self.decoder = nn.Linear(self.char_vec_size, self.vocab_size)
-        
-        # This shares the encoder and decoder weights as described in lecture.
-        self.decoder.weight = self.char_encoder.weight
-        self.decoder.bias.data.zero_()
-        
-        
-        weight = torch.ones(vocab_size)
-        # scores over PAD is not counted
-        weight[PAD] = 0
-        self.sm = nn.LogSoftmax(dim=1)
-        self.crit = nn.NLLLoss(weight, size_average=False)
-
-    def forward(self, input, hidden=None):
-        emb = pack(torch.cat((self.char_encoder(input[0]), self.lang_encoder(input[1])), -1), input[2])
-        output, hidden_t = self.gru(emb, hidden)
-        output = unpack(output)[0]
-        output = F.tanh(self.linear(output))
-        output = self.decoder(output)
-        return output, hidden_t
-
-    # Predefined loss function
-    def loss(self, prediction, label, reduction='elementwise_mean'):
-        prediction = prediction.view(-1, self.vocab_size)
-        prediction = self.sm(prediction)
-        loss_val = self.crit(prediction, label.view(-1))
-        return loss_val
-
 # train process for a epoch
 def train(model, trainData, epoch, optimizer, PAD):
     model.train()
