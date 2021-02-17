@@ -4,6 +4,8 @@ import os
 from collections import Counter
 import torch
 from torch.utils.data import TensorDataset, DataLoader
+import torch.nn.functional as F
+import math
 
 class Data():
     def __init__(self):
@@ -52,11 +54,11 @@ def get_freq(data, vocab):
         freq[vocab.index('</S>')] += 1
     return freq
 
-def get_data_loader(tweets, lans, batch_size):
+def get_data_loader(tweets, lans, batch_size, shuffle=False):
     data_tensor = torch.tensor(tweets, dtype=torch.long, device=torch.device("cpu"))
     label_tensor = torch.tensor(lans, dtype=torch.long, device=torch.device("cpu"))
     train_dataset = TensorDataset(data_tensor, label_tensor)
-    return DataLoader(dataset = train_dataset, batch_size = batch_size, shuffle = True) 
+    return DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=shuffle) 
 
 def data_encoding(data, vocab, languages, tweet_length=282):
     tweets = tweet_enconding(data.tweet, vocab, tweet_length)
@@ -97,6 +99,13 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=
             data, label = data.to(device), label.to(device)
             optimizer.zero_grad()
             output, hidden = model(data, label)
+            # Doruk's little experiment
+            # if batch_idx == 0:
+            #     log = 0.0
+            #     for k, vocab in enumerate(output[0]):
+            #         index = data[0][k]
+            #         log += vocab[index].item()
+            #     print(log)
             loss = model.loss(output, label)
             loss.backward()
             optimizer.step()
@@ -105,21 +114,20 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
-def test(model, device, test_loader, criterion):
+def test(model, device, test_loader):
     model.eval()
     test_loss = 0
-    correct = 0
+    test_ppl = 0
     with torch.no_grad():
         for data, label in test_loader:
             data, label = data.to(device), label.to(device)
-            output, hidden = model(data)
-            test_loss += criterion(output, label) 
-            pred = output.max(1, keepdim=True)[1]
-            correct += pred.eq(label.view_as(pred)).sum().item()
+            output, hidden = model(data, label)
+            test_loss += model.loss(output, label).item()
+            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=507))
 
     test_loss /= len(test_loader.dataset)
-    print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+    test_ppl /= len(test_loader.dataset)
+    print('test_ppl : ' + str(test_ppl))
+    print('test_loss : ' + str(test_loss))
     
-    return 100. * correct / len(test_loader.dataset)
+    return test_loss, test_ppl
