@@ -83,7 +83,7 @@ def lang_encoding(labels, languages, tweet_length):
     encoded = np.zeros((len(labels), tweet_length))
     for l, lang in enumerate(labels):
         idx = languages.index(lang)
-        for char in range(1, tweet_length-1):
+        for char in range(0, tweet_length):
             encoded[l][char] = idx
     return encoded
 
