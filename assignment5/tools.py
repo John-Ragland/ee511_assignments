@@ -28,6 +28,7 @@ class Data():
         vocab.insert(0,'<S>')   # start token
         vocab.insert(0,'</S>')  # end token
         vocab.insert(0,'<N>')   # out-of-vocabulary token
+        vocab.insert(0,'<P>')
         
         self.vocab = vocab
     
@@ -54,18 +55,20 @@ def get_freq(data, vocab):
         freq[vocab.index('</S>')] += 1
     return freq
 
-def get_data_loader(tweets, lans, batch_size, shuffle=False):
+def get_data_loader(tweets, lans, length, batch_size, shuffle=False):
     data_tensor = torch.tensor(tweets, dtype=torch.long, device=torch.device("cpu"))
     label_tensor = torch.tensor(lans, dtype=torch.long, device=torch.device("cpu"))
-    train_dataset = TensorDataset(data_tensor, label_tensor)
+    length_tensor = torch.tensor(length, dtype=torch.long, device=torch.device("cpu"))
+    train_dataset = TensorDataset(data_tensor, label_tensor, length_tensor)
     return DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=shuffle) 
 
 def data_encoding(data, vocab, languages, tweet_length=282):
-    tweets = tweet_enconding(data.tweet, vocab, tweet_length)
+    tweets, lengths = tweet_encoding(data.tweet, vocab, tweet_length)
     langs = lang_encoding(data.lan, languages, tweet_length)
-    return tweets, langs
 
-def tweet_enconding(tweets, vocab, tweet_length):
+    return tweets, langs, lengths
+
+def tweet_encoding(tweets, vocab, tweet_length):
     encoded = np.zeros((len(tweets), tweet_length))
     for t, tweet in enumerate(tweets):
         encoded[t][0] = vocab.index('<S>')
@@ -76,14 +79,20 @@ def tweet_enconding(tweets, vocab, tweet_length):
                 encoded[t][char] = vocab.index('<N>')
             else:
                 encoded[t][char] = vocab.index('</S>')
-        encoded[t][tweet_length-1] = vocab.index('</S>')
-    return encoded
+                break
+        #encoded[t][tweet_length-1] = vocab.index('</S>')
+
+    lengths = np.zeros(encoded.shape[0])
+    for k in range(encoded.shape[0]):
+        result = np.where(encoded[k]==0)
+        lengths[k] = result[0][0] - 1
+    return encoded, lengths
 
 def lang_encoding(labels, languages, tweet_length):
     encoded = np.zeros((len(labels), tweet_length))
     for l, lang in enumerate(labels):
         idx = languages.index(lang)
-        for char in range(1, tweet_length-1):
+        for char in range(0, tweet_length):
             encoded[l][char] = idx
     return encoded
 
@@ -95,10 +104,10 @@ def check_files_exists(filename):
 def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=False):
     for epoch in range(epochs + 1):
         model.train()
-        for batch_idx, (data, label) in enumerate(train_loader):
-            data, label = data.to(device), label.to(device)
+        for batch_idx, (data, label, lengths) in enumerate(train_loader):
+            data, label, lengths = data.to(device), label.to(device), lengths.to(device)
             optimizer.zero_grad()
-            output, hidden = model(data, label)
+            output, hidden = model(data, label, lengths)
             # Doruk's little experiment
             # if batch_idx == 0:
             #     log = 0.0
@@ -110,7 +119,7 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=
             loss.backward()
             optimizer.step()
             if verbose and batch_idx % log_interval == 0:
-                print('Train Epoch: %d [%d/%d (%.0f%%)]\tLoss: %.6f' % (
+                print('Train Epoch: %d [%d/%d (%.0f%%)]\tLoss: %.6f\n' % (
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
@@ -139,8 +148,6 @@ def test2(model, device, test_loader):
     with torch.no_grad():
         for data, label in test_loader:
             data, label = data.to(device), label.to(device)
-            print(data.size())
-            print(label.size())
             output, hidden = model(data, label)
 
             return output, hidden, data
