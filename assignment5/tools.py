@@ -131,3 +131,25 @@ def test(model, device, test_loader):
     print('test_loss : ' + str(test_loss))
     
     return test_loss, test_ppl
+
+def test2(model, device, test_loader):
+    model.eval()
+    test_loss = 0
+    test_ppl = 0
+    with torch.no_grad():
+        for data, label in test_loader:
+            data, label = data.to(device), label.to(device)
+            print(data.size())
+            print(label.size())
+            output, hidden = model(data, label)
+
+            return output, hidden, data
+            test_loss += model.loss(output, label).item()
+            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=507))
+
+    test_loss /= len(test_loader.dataset)
+    test_ppl /= len(test_loader.dataset)
+    print('test_ppl : ' + str(test_ppl))
+    print('test_loss : ' + str(test_loss))
+    
+    return test_loss, test_ppl
