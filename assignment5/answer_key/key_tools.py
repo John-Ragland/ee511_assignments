@@ -100,8 +100,6 @@ def test(model, testData, PAD):
             test_loss += model.loss(output, label).item()
             test_ppl += math.exp(F.cross_entropy(output.view(-1, model.vocab_size), label.view(-1), ignore_index=PAD))
 
-    test_loss /= len(testData)
-    test_ppl /= len(testData)
     print('test_ppl : ' + str(test_ppl))
     print('test_loss : ' + str(test_loss))
 

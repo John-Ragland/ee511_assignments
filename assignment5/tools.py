@@ -60,12 +60,12 @@ def get_data_loader(tweets, lans, batch_size, shuffle=False):
     train_dataset = TensorDataset(data_tensor, label_tensor)
     return DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=shuffle) 
 
-def data_encoding(data, vocab, languages, tweet_length=282):
-    tweets = tweet_enconding(data.tweet, vocab, tweet_length)
-    langs = lang_encoding(data.lan, languages, tweet_length)
+def data_encoding(data, vocab, languages):
+    tweets = tweet_enconding(data.tweet, vocab)
+    langs = lang_encoding(data.lan, languages)
     return tweets, langs
 
-def tweet_enconding(tweets, vocab, tweet_length):
+def tweet_enconding(tweets, vocab, tweet_length=282):
     encoded = np.zeros((len(tweets), tweet_length))
     for t, tweet in enumerate(tweets):
         encoded[t][0] = vocab.index('<S>')
@@ -79,11 +79,11 @@ def tweet_enconding(tweets, vocab, tweet_length):
         encoded[t][tweet_length-1] = vocab.index('</S>')
     return encoded
 
-def lang_encoding(labels, languages, tweet_length):
+def lang_encoding(labels, languages, tweet_length=282):
     encoded = np.zeros((len(labels), tweet_length))
     for l, lang in enumerate(labels):
         idx = languages.index(lang)
-        for char in range(1, tweet_length-1):
+        for char in range(tweet_length):
             encoded[l][char] = idx
     return encoded
 
@@ -93,19 +93,12 @@ def check_files_exists(filename):
         raise Exception ('Data files missings, please add %s.' % filename)
 
 def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=False):
-    for epoch in range(epochs + 1):
+    for epoch in range(epochs):
         model.train()
         for batch_idx, (data, label) in enumerate(train_loader):
             data, label = data.to(device), label.to(device)
             optimizer.zero_grad()
             output, hidden = model(data, label)
-            # Doruk's little experiment
-            # if batch_idx == 0:
-            #     log = 0.0
-            #     for k, vocab in enumerate(output[0]):
-            #         index = data[0][k]
-            #         log += vocab[index].item()
-            #     print(log)
             loss = model.loss(output, label)
             loss.backward()
             optimizer.step()
@@ -114,7 +107,7 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
-def test(model, device, test_loader):
+def test(model, device, test_loader, pad):
     model.eval()
     test_loss = 0
     test_ppl = 0
@@ -123,33 +116,49 @@ def test(model, device, test_loader):
             data, label = data.to(device), label.to(device)
             output, hidden = model(data, label)
             test_loss += model.loss(output, label).item()
-            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=507))
+            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=pad))
 
-    test_loss /= len(test_loader.dataset)
-    test_ppl /= len(test_loader.dataset)
-    print('test_ppl : ' + str(test_ppl))
-    print('test_loss : ' + str(test_loss))
+    # test_loss /= len(test_loader.dataset)
+    # test_ppl /= len(test_loader.dataset)
+    print('Perplexity : ' + str(test_ppl))
+    print('Loss       : ' + str(test_loss))
     
     return test_loss, test_ppl
 
-def test2(model, device, test_loader):
+def predict(model , device, test_loader):
     model.eval()
-    test_loss = 0
-    test_ppl = 0
+    correct = 0
     with torch.no_grad():
+        encoded = np.zeros((9, 282))
+        for l in range(9):
+            for c in range(282):
+                encoded[l][c] = l
+
+        enc = [torch.empty(1, 1, 282)] * 9
+        for i in range(9):
+            enc[i] = torch.tensor([encoded[i]], dtype=torch.long, device=torch.device("cpu"))
+        
+        print(len(test_loader.dataset))
+
         for data, label in test_loader:
             data, label = data.to(device), label.to(device)
-            print(data.size())
-            print(label.size())
-            output, hidden = model(data, label)
+            truth = label[0][0].item()
+            best = 0
+            pred = 0
+            for lang in range(9):
+                output, hidden = model(data, enc[lang])
+                prob = 0.0
+                for k, vocab in enumerate(output[0]):
+                    index = data[0][k]
+                    prob += vocab[index].item()
 
-            return output, hidden, data
-            test_loss += model.loss(output, label).item()
-            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=507))
+                # print(prob)
+                if prob > best:
+                    best = prob
+                    pred = lang
+            
+            if pred == truth:
+                correct += 1
 
-    test_loss /= len(test_loader.dataset)
-    test_ppl /= len(test_loader.dataset)
-    print('test_ppl : ' + str(test_ppl))
-    print('test_loss : ' + str(test_loss))
-    
-    return test_loss, test_ppl
+    print(correct)
+    print('accuracy %.2f' % (correct/len(test_loader.dataset)))
