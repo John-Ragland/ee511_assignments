@@ -86,8 +86,6 @@ def train(model, trainData, epoch, optimizer, PAD):
     print('     train_ppl : ' + str(train_ppl))
     print('     train_loss : ' + str(train_loss))
     return train_ppl
-  
-  
 
 def test(model, testData, PAD):
     model.eval()

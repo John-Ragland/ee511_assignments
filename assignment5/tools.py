@@ -125,7 +125,7 @@ def test(model, device, test_loader, pad):
     
     return test_loss, test_ppl
 
-def predict(model , device, test_loader):
+def predict(model , device, test_loader, PAD=0):
     model.eval()
     correct = 0
     with torch.no_grad():
@@ -139,26 +139,32 @@ def predict(model , device, test_loader):
             enc[i] = torch.tensor([encoded[i]], dtype=torch.long, device=torch.device("cpu"))
         
         print(len(test_loader.dataset))
-
+        i = 0
         for data, label in test_loader:
             data, label = data.to(device), label.to(device)
             truth = label[0][0].item()
-            best = 0
+            best = 10000000000
             pred = 0
+            # print("----NEW TWEET----")
+            # print("truth: %d" %truth)
             for lang in range(9):
                 output, hidden = model(data, enc[lang])
                 prob = 0.0
                 for k, vocab in enumerate(output[0]):
                     index = data[0][k]
-                    prob += vocab[index].item()
+                    if index != PAD:
+                        prob += vocab[index].item()
 
                 # print(prob)
-                if prob > best:
+                if prob < best:
                     best = prob
                     pred = lang
             
             if pred == truth:
                 correct += 1
+            # i+=1
+            # if i > 1000:
+            #     break
 
     print(correct)
     print('accuracy %.2f' % (correct/len(test_loader.dataset)))
