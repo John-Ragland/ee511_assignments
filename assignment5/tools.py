@@ -92,14 +92,15 @@ def check_files_exists(filename):
     if not os.path.exists(filename):
         raise Exception ('Data files missings, please add %s.' % filename)
 
-def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=False):
+def train(model, device, train_loader, optimizer, criterion, epochs, log_interval, verbose=False):
     for epoch in range(epochs):
         model.train()
         for batch_idx, (data, label) in enumerate(train_loader):
             data, label = data.to(device), label.to(device)
             optimizer.zero_grad()
-            output, hidden = model(data, label)
-            loss = model.loss(output, label)
+            output, _ = model(data, label)
+            output = F.log_softmax(output.view(-1, 509), dim=1)
+            loss = criterion(output, label.view(-1))
             loss.backward()
             optimizer.step()
             if verbose and batch_idx % log_interval == 0:
@@ -107,64 +108,46 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
-def test(model, device, test_loader, pad):
+def test(model, device, test_loader, criterion, pad):
     model.eval()
-    test_loss = 0
-    test_ppl = 0
+    loss = 0
+    perp = 0
     with torch.no_grad():
         for data, label in test_loader:
             data, label = data.to(device), label.to(device)
-            output, hidden = model(data, label)
-            test_loss += model.loss(output, label).item()
-            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=pad))
+            output, _ = model(data, label)
+            output = output.view(-1, 509)
+            loss = criterion(F.log_softmax(output, dim=1), label.view(-1))
+            perp += math.exp(F.cross_entropy(output, label.view(-1), ignore_index=pad))
+    return loss, perp
 
-    # test_loss /= len(test_loader.dataset)
-    # test_ppl /= len(test_loader.dataset)
-    print('Perplexity : ' + str(test_ppl))
-    print('Loss       : ' + str(test_loss))
-    
-    return test_loss, test_ppl
-
-def predict(model , device, test_loader, PAD=0):
+def predict(model , device, data, labels):
+    '''
+    lan - language id (0-8)
+    '''
     model.eval()
-    correct = 0
     with torch.no_grad():
-        encoded = np.zeros((9, 282))
-        for l in range(9):
-            for c in range(282):
-                encoded[l][c] = l
-
-        enc = [torch.empty(1, 1, 282)] * 9
-        for i in range(9):
-            enc[i] = torch.tensor([encoded[i]], dtype=torch.long, device=torch.device("cpu"))
-        
-        print(len(test_loader.dataset))
-        i = 0
-        for data, label in test_loader:
+        for lan in range(9):
+            label = torch.ones(data.size(), dtype=torch.long)*lan
             data, label = data.to(device), label.to(device)
-            truth = label[0][0].item()
-            best = 10000000000
-            pred = 0
-            # print("----NEW TWEET----")
-            # print("truth: %d" %truth)
-            for lang in range(9):
-                output, hidden = model(data, enc[lang])
-                prob = 0.0
-                for k, vocab in enumerate(output[0]):
-                    index = data[0][k]
-                    if index != PAD:
-                        prob += vocab[index].item()
-
-                # print(prob)
-                if prob < best:
-                    best = prob
-                    pred = lang
+            output, _ = model(data, label)
             
-            if pred == truth:
-                correct += 1
-            # i+=1
-            # if i > 1000:
-            #     break
+            # output = F.log_softmax(output, dim=2)
+            #convert to numpy
+            data_np = data.numpy()
+            output_np = output.numpy()
 
-    print(correct)
-    print('accuracy %.2f' % (correct/len(test_loader.dataset)))
+            # calculate log prob for each letter of sequence (using output matrix)     
+            prob = np.zeros(data_np.shape)
+            for batch in range(output_np.shape[0]):
+                for char in range(output_np.shape[1]):
+                    prob[batch, char] = output_np[batch, char, data_np[batch, char]]
+
+            if lan == 0:
+                total_prob = np.sum(prob, axis=1)
+            else:
+                total_prob = np.vstack((np.sum(prob, axis=1),total_prob))
+        
+        # Choose language with highest character probability
+        output = np.argmax(total_prob,axis=0)
+        return np.sum(output == labels)/output.shape[0]
