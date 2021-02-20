@@ -88,19 +88,17 @@ def lang_encoding(labels, languages, tweet_length=282):
     return encoded
 
 def check_files_exists(filename):
-    # Check if data files exist
     if not os.path.exists(filename):
         raise Exception ('Data files missings, please add %s.' % filename)
 
-def train(model, device, train_loader, optimizer, criterion, epochs, log_interval, verbose=False):
+def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=False):
     for epoch in range(epochs):
         model.train()
         for batch_idx, (data, label) in enumerate(train_loader):
             data, label = data.to(device), label.to(device)
             optimizer.zero_grad()
-            output, _ = model(data, label)
-            output = F.log_softmax(output.view(-1, 509), dim=1)
-            loss = criterion(output, label.view(-1))
+            output, hidden = model(data, label)
+            loss = model.loss(output, label)
             loss.backward()
             optimizer.step()
             if verbose and batch_idx % log_interval == 0:
@@ -108,29 +106,30 @@ def train(model, device, train_loader, optimizer, criterion, epochs, log_interva
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
-def test(model, device, test_loader, criterion, pad):
+def test(model, device, test_loader, pad):
     model.eval()
     loss = 0
     perp = 0
     with torch.no_grad():
         for data, label in test_loader:
             data, label = data.to(device), label.to(device)
-            output, _ = model(data, label)
-            output = output.view(-1, 509)
-            loss = criterion(F.log_softmax(output, dim=1), label.view(-1))
-            perp += math.exp(F.cross_entropy(output, label.view(-1), ignore_index=pad))
+            output, hidden = model(data, label)
+            loss += model.loss(output, label).item()
+            perp += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=pad))
     return loss, perp
 
-def predict(model , device, data, labels):
+def predict(model, device, data):
     '''
     lan - language id (0-8)
     '''
     model.eval()
+
     with torch.no_grad():
+
         for lan in range(9):
             label = torch.ones(data.size(), dtype=torch.long)*lan
             data, label = data.to(device), label.to(device)
-            output, _ = model(data, label)
+            output, hidden = model(data, label)
             
             # output = F.log_softmax(output, dim=2)
             #convert to numpy
@@ -150,4 +149,4 @@ def predict(model , device, data, labels):
         
         # Choose language with highest character probability
         output = np.argmax(total_prob,axis=0)
-        return np.sum(output == labels)/output.shape[0]
+        return output
