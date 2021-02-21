@@ -19,9 +19,11 @@ def LoadData(filename):
     data = pandas.read_csv(fullname, header=None, sep='\t', quoting=3, compression='gzip')
     data.columns = ['lang', 'text']
     return data
-data = LoadData('train.tsv.gz')
-val_data = LoadData('val.tsv.gz')
-test_data = LoadData('test.tsv.gz')
+
+data = LoadData('../Data/train.tsv.gz')
+val_data = LoadData('../Data/val.tsv.gz')
+test_data = LoadData('../Data/test.tsv.gz')
+
 data.head()
 
 # Create the vocabulary tables
@@ -267,7 +269,7 @@ def get_predictions(model, testData):
 BATCH_SIZE = 64
 FEATURE_SIZE = 15
 TEST_BATCH_SIZE = 256
-EPOCHS = 10
+EPOCHS = 3
 LEARNING_RATE = 0.001
 WEIGHT_DECAY = 0.0005
 
