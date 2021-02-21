@@ -60,12 +60,12 @@ def get_data_loader(tweets, lans, batch_size, shuffle=False):
     train_dataset = TensorDataset(data_tensor, label_tensor)
     return DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=shuffle) 
 
-def data_encoding(data, vocab, languages, tweet_length=282):
-    tweets = tweet_enconding(data.tweet, vocab, tweet_length)
-    langs = lang_encoding(data.lan, languages, tweet_length)
+def data_encoding(data, vocab, languages):
+    tweets = tweet_enconding(data.tweet, vocab)
+    langs = lang_encoding(data.lan, languages)
     return tweets, langs
 
-def tweet_enconding(tweets, vocab, tweet_length):
+def tweet_enconding(tweets, vocab, tweet_length=282):
     encoded = np.zeros((len(tweets), tweet_length))
     for t, tweet in enumerate(tweets):
         encoded[t][0] = vocab.index('<S>')
@@ -79,7 +79,7 @@ def tweet_enconding(tweets, vocab, tweet_length):
         encoded[t][tweet_length-1] = vocab.index('</S>')
     return encoded
 
-def lang_encoding(labels, languages, tweet_length):
+def lang_encoding(labels, languages, tweet_length=282):
     encoded = np.zeros((len(labels), tweet_length))
     for l, lang in enumerate(labels):
         idx = languages.index(lang)
@@ -88,24 +88,16 @@ def lang_encoding(labels, languages, tweet_length):
     return encoded
 
 def check_files_exists(filename):
-    # Check if data files exist
     if not os.path.exists(filename):
         raise Exception ('Data files missings, please add %s.' % filename)
 
 def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=False):
-    for epoch in range(epochs + 1):
+    for epoch in range(epochs):
         model.train()
         for batch_idx, (data, label) in enumerate(train_loader):
             data, label = data.to(device), label.to(device)
             optimizer.zero_grad()
             output, hidden = model(data, label)
-            # Doruk's little experiment
-            # if batch_idx == 0:
-            #     log = 0.0
-            #     for k, vocab in enumerate(output[0]):
-            #         index = data[0][k]
-            #         log += vocab[index].item()
-            #     print(log)
             loss = model.loss(output, label)
             loss.backward()
             optimizer.step()
@@ -114,42 +106,47 @@ def train(model, device, train_loader, optimizer, epochs, log_interval, verbose=
                     epoch, batch_idx * len(data), len(train_loader.dataset),
                     100. * batch_idx / len(train_loader), loss.item()))
 
-def test(model, device, test_loader):
+def test(model, device, test_loader, pad):
     model.eval()
-    test_loss = 0
-    test_ppl = 0
+    loss = 0
+    perp = 0
     with torch.no_grad():
         for data, label in test_loader:
             data, label = data.to(device), label.to(device)
             output, hidden = model(data, label)
-            test_loss += model.loss(output, label).item()
-            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=507))
+            loss += model.loss(output, label).item()
+            perp += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=pad))
+    return loss, perp
 
-    test_loss /= len(test_loader.dataset)
-    test_ppl /= len(test_loader.dataset)
-    print('test_ppl : ' + str(test_ppl))
-    print('test_loss : ' + str(test_loss))
-    
-    return test_loss, test_ppl
-
-def test2(model, device, test_loader):
+def predict(model, device, data):
+    '''
+    lan - language id (0-8)
+    '''
     model.eval()
-    test_loss = 0
-    test_ppl = 0
+
     with torch.no_grad():
-        for data, label in test_loader:
+
+        for lan in range(9):
+            label = torch.ones(data.size(), dtype=torch.long)*lan
             data, label = data.to(device), label.to(device)
-            print(data.size())
-            print(label.size())
             output, hidden = model(data, label)
+            
+            # output = F.log_softmax(output, dim=2)
+            #convert to numpy
+            data_np = data.numpy()
+            output_np = output.numpy()
 
-            return output, hidden, data
-            test_loss += model.loss(output, label).item()
-            test_ppl += math.exp(F.cross_entropy(output.view(-1, 509), label.view(-1), ignore_index=507))
+            # calculate log prob for each letter of sequence (using output matrix)     
+            prob = np.zeros(data_np.shape)
+            for batch in range(output_np.shape[0]):
+                for char in range(output_np.shape[1]):
+                    prob[batch, char] = output_np[batch, char, data_np[batch, char]]
 
-    test_loss /= len(test_loader.dataset)
-    test_ppl /= len(test_loader.dataset)
-    print('test_ppl : ' + str(test_ppl))
-    print('test_loss : ' + str(test_loss))
-    
-    return test_loss, test_ppl
+            if lan == 0:
+                total_prob = np.sum(prob, axis=1)
+            else:
+                total_prob = np.vstack((np.sum(prob, axis=1),total_prob))
+        
+        # Choose language with highest character probability
+        output = np.argmax(total_prob,axis=0)
+        return output
