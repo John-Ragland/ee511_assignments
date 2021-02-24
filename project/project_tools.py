@@ -32,7 +32,20 @@ def get_weekly_stats():
   return pd.concat(frames)
 
 
-def get_games_df():
+def get_games_df(data_type='train'):
+    '''
+    Parameters
+    ----------
+    data_type : str
+        - 'train' returns all years except 2019
+        - 'test' returns 2019
+
+    Returns
+    -------
+    games : pandas df
+        data for all games
+    '''
+
     try:
         with open('cfb_data.pkl', 'rb') as f:
             original_stats, original_games, original_records, original_teams = pickle.load(f)
@@ -140,4 +153,11 @@ def get_games_df():
 
     # Drop 2020
     games = games[games['season'] != 2020]
+
+    if data_type == 'train':
+        games = games[games['season'] != 2019]
+    elif data_type == 'test':
+        games = games[games['season'] == 2019]
+    else:
+        raise Exception('Invalid data_type string ("train", "test" is valid)')
     return games
