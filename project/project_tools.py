@@ -23,14 +23,13 @@ def get_data(data_type, start_year, end_year=2020, week=None):
         frames.append(pd.read_json(url))
     return pd.concat(frames)
 
-def get_weekly_stats():
+def get_weekly_stats(start_year):
   frames = []
   for week in range(1, 16):
-    week_frame = get_data('stats/season', 2004, week=week)
+    week_frame = get_data('stats/season', start_year, week=week)
     week_frame['week'] = week+1
     frames.append(week_frame)
   return pd.concat(frames)
-
 
 def get_games_df(data_type='train'):
     '''
@@ -47,18 +46,22 @@ def get_games_df(data_type='train'):
     '''
 
     try:
-        with open('cfb_data.pkl', 'rb') as f:
-            original_stats, original_games, original_records, original_teams = pickle.load(f)
+        original_stats, original_games, original_records, original_teams, original_spread, original_rankings = load_data_pkl()
     except:
-        raise Exception('Call save_data to create pickle files of data')
+        raise Exception('Missing Pickle File: Call save_data() to create pickle files of data')
 
     # get the games and calculate spread (result)
     games = original_games
     games = games.assign(result = (games.home_points-games.away_points))
-    games = games.loc[:, games.columns.intersection(['season', 'week', 'home_team', 'away_team', 'result'])]
+    games = games.loc[:, games.columns.intersection(['id', 'season', 'week', 'home_team', 'away_team', 'result', 'excitement_index'])]
+
+    # add pregame predictions
+    spreads = original_spread.loc[:, original_spread.columns.intersection(['gameId', 'spread', 'homeWinProb'])]
+    spreads.spread *= -1
+    games = pd.merge(games, spreads, how='left', left_on=['id'], right_on=['gameId']).drop(['gameId'], axis=1)
+
 
     # get winning percentages for the season
-    # TODO: make this win percentage up to that week's game
     records = original_records
     records = records.assign(total_games = [d.get('games') for d in records.total])
     records = records.assign(total_wins = [d.get('wins') for d in records.total])
@@ -75,11 +78,7 @@ def get_games_df(data_type='train'):
     stats = original_stats
     stats = stats.drop(columns=['conference'])
 
-    # get the list of stats
-    w = stats.loc[(stats.team == 'Washington') & (stats.season == 2004)]
-    stat_cols = w.statName.to_list()
-    stat_cols = list(set(stat_cols)) # remove duplicates
-    stat_cols.sort()
+    stat_cols = list(stats.statName.unique())
     stat_cols.remove('games')
     # print(stat_cols)
 
@@ -206,3 +205,35 @@ def get_games_df(data_type='train'):
     else:
         raise Exception('Invalid data_type string ("train", "test" is valid)')
     return games
+
+def save_data():
+    begin = 2013
+    original_stats = get_weekly_stats(begin)
+    original_games = get_data('games', begin)
+    original_records = get_data('records', begin)
+    original_teams = pd.read_json('https://api.collegefootballdata.com/teams')
+    original_spread = get_data('metrics/wp/pregame', begin)
+    original_rankings = get_data('rankings', begin)
+
+
+    # Reset indecis of all dataframes
+    original_stats = original_stats.reset_index(drop=True)
+    original_games = original_games.reset_index(drop=True)
+    original_records = original_records.reset_index(drop=True)
+    original_teams = original_teams.reset_index(drop=True)
+    original_spread = original_spread.reset_index(drop=True)
+    original_rankings = original_rankings.reset_index(drop=True)
+
+    # Save to Pickle File
+    # Save all Data into Pickle File
+    with open('cfb_data.pkl','wb') as f:
+        pickle.dump([original_stats, original_games, original_records, original_teams, original_spread, original_rankings], f )
+
+    return
+
+def load_data_pkl(filename = 'cfb_data.pkl'):
+    # Load all Data into Pickle File
+    with open('cfb_data.pkl', 'rb') as f:
+        original_stats, original_games, original_records, original_teams, original_spread, original_rankings = pickle.load(f)
+
+    return original_stats, original_games, original_records, original_teams, original_spread, original_rankings
