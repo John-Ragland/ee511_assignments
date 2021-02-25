@@ -81,7 +81,7 @@ def get_games_df(data_type='train'):
     stat_cols = list(set(stat_cols)) # remove duplicates
     stat_cols.sort()
     stat_cols.remove('games')
-    print(stat_cols)
+    # print(stat_cols)
 
     # add each stat of both teams
     s = stats.loc[(stats.statName == 'games')]
@@ -153,6 +153,51 @@ def get_games_df(data_type='train'):
 
     # Drop 2020
     games = games[games['season'] != 2020]
+
+    # Add record up to game
+    # Create list of teams
+    teams = pd.concat((games['home_team'], games['away_team'])).unique()
+
+    # Create Team ID
+    team_id = np.arange(0,len(teams))
+    team2id = dict(zip(teams, team_id))
+
+    num_seasons = len(games['season'].unique())
+    season2id = dict(zip(games['season'].unique(), np.arange(0,num_seasons)))
+    # Create Wins Lookup Table
+    win_data = np.zeros((num_seasons, len(teams),17))
+    #print(win_data.shape) #(season, team, week)
+
+    # loop through every game in games df
+    for k in range(len(games)):
+        home_team = games['home_team'][k]
+        away_team = games['away_team'][k]
+        result = np.sign(games['result'][k])
+        week = games['week'][k]
+        season = games['season'][k]
+        
+        home_id = team2id[home_team]
+        away_id = team2id[away_team]
+        seas_id = season2id[season]
+        if result == 1: # Home team won
+            win_data[seas_id, home_id, (week+1):] += 1
+        else: # Away team won
+            win_data[seas_id, away_id, (week+1):] += 1
+
+    # populate games df
+    away_wins = []
+    home_wins = []
+    for k in range(len(games)):
+        week = games['week'][k]
+        home = games['home_team'][k]
+        away = games['away_team'][k]
+        season = games['season'][k]
+        away_wins.append(win_data[season2id[season],team2id[away],week])
+        home_wins.append(win_data[season2id[season],team2id[home],week])
+        
+    games['away_wins'] = away_wins
+    games['home_wins'] = home_wins
+
 
     if data_type == 'train':
         games = games[games['season'] != 2019]
